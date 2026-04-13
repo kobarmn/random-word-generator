@@ -2,7 +2,11 @@ import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-void main() {
+import 'dart:convert'; // JSON変換用
+import 'package:shared_preferences/shared_preferences.dart'; //ローカル保存用
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(MyApp());
 }
 
@@ -59,6 +63,36 @@ class MyAppState extends ChangeNotifier {
       current.tag = newTag;
     }
     notifyListeners(); // 変更内容を通知
+  }
+
+  // データを保存するメソッド
+  Future<void> saveFavorites() async {
+    // 保存領域をopenする。
+    final prefs = await SharedPreferences.getInstance();
+    // リストをJSON文字列のリストに変換
+    final String encodedData = json.encode(
+      favorites.map((item) => item.toJson()).toList(),
+    );
+    // [favorites_key] として、JSON文字列のリストを保持する。
+    await prefs.setString('favorites_key', encodedData);
+  }
+
+  // データを読み込むメソッド
+  Future<void> loadFavorites() async {
+    // 保存領域をopenする。
+    final prefs = await SharedPreferences.getInstance();
+    // [favorites_key]として、保持したリストを取得する。
+    final String? savedData = prefs.getString('favorites_key');
+
+    if (savedData != null) {
+      //Json文字列 → リスト型
+      final List<dynamic> decodedData = json.decode(savedData);
+      // リスト型 → FavoriteItem型
+      favorites = decodedData
+          .map((item) => FavoriteItem.fromJson(item))
+          .toList();
+      notifyListeners();
+    }
   }
 }
 
@@ -225,6 +259,18 @@ class GeneratorPage extends StatelessWidget {
               minimumSize: Size(150, 50),
             ),
           ),
+          SizedBox(height: 15,),
+          ElevatedButton.icon(onPressed: (){
+            // 保存メソッド呼び出し
+            appState.saveFavorites();
+            // ボタン押下時、メッセージ表示
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('お気に入りを保存しました！')),
+            );
+          },
+              icon: Icon(Icons.save),
+              label: Text('Save'),
+          )
         ],
       ),
     );
@@ -269,4 +315,19 @@ class FavoriteItem {
   WordTag tag; // 'Cool', 'Cute', 'None'
 
   FavoriteItem({required this.pair, this.tag = WordTag.none});
+
+  // JSON保存用のMapに変換
+  Map<String, dynamic> toJson() => {
+    'first': pair.first,
+    'second': pair.second,
+    'tagIndex': tag.index, // 1:none 2:cool 3:cute
+  };
+
+  // Mapからインスタンスを復元
+  factory FavoriteItem.fromJson(Map<String, dynamic> json) {
+    return FavoriteItem(
+      pair: WordPair(json['first'], json['second']),
+      tag: WordTag.values[json['tagIndex']],
+    );
+  }
 }
