@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:hiragana_converter/data.dart';
+import 'package:http/http.dart';
 
 class InputForm extends StatefulWidget {
   const InputForm({super.key});
